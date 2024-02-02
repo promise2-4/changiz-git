@@ -26,6 +26,10 @@ int add(int argc, char *const argv[]);
 int reset(int argc, char *const argv[]);
 
 int commit(int argc, char *const argv[]);
+int set(int argc, char *const argv[]);
+void find_shortcut(char *shortcut_name, int *flag_not_exist);
+int replace(int argc, char *const argv[]);
+int remove_func(int argc, char *const argv[]);
 
 int branch(int argc, char *const argv[]);
 
@@ -551,7 +555,7 @@ int reset(int argc, char *const argv[])
 
 int commit(int argc, char *const argv[])
 {
-    if (argc < 4)
+    if (argc != 4)
     {
         fprintf(stdout, "please enter a valid command");
         return 1;
@@ -561,7 +565,15 @@ int commit(int argc, char *const argv[])
         fprintf(stdout, "please enter a valid message");
         return 1;
     }
-
+    if (strcmp(argv[2], "-s") == 0)
+    {
+        int flag_not_exist = 0;
+        find_shortcut(argv[3], &flag_not_exist);
+        if (flag_not_exist==1)
+        {
+            return 0;
+        }
+    }
     FILE *count = fopen(".changiz/save_staging_names", "r");
     if (count == NULL)
     {
@@ -625,6 +637,156 @@ int commit(int argc, char *const argv[])
 
     fprintf(stdout, "commited successfully\n\n");
     fprintf(stdout, "Commit id: %s\nComment: %s\nDate: %s", str_id, argv[3], ctime(&cur));
+    return 1;
+}
+
+int set(int argc, char *const argv[])
+{
+    if (argc < 3 || argv[5] == NULL)
+    {
+        fprintf(stderr, "please enter a valid command\n");
+        return 0;
+    }
+    FILE *shortcut = fopen(".changiz/saving_shortcuts", "a");
+    fprintf(shortcut, "%s\n%s\n", argv[5], argv[3]);
+    fclose(shortcut);
+    fprintf(stdout,"Shortcut added successfully");
+    return 1;
+}
+
+void find_shortcut(char *shortcut_name, int *flag_not_exist)
+{
+    FILE *shortcut = fopen(".changiz/saving_shortcuts", "r");
+    char file_str[MAX_FILENAME_LENGTH] = "";
+    char shortcut_line[MAX_LINE_LENGTH][MAX_LINE_LENGTH];
+    int line_counter = 0;
+
+    fscanf(shortcut, "%[^\0]s", file_str);
+    fclose(shortcut);
+    char *line = strtok(file_str, "\n");
+    while (line != NULL)
+    {
+        strcpy(shortcut_line[line_counter], line);
+        line_counter++;
+        line = strtok(NULL, "\n");
+    }
+    int flag = 0;
+    for (int i = 0; i < line_counter; i++)
+    {
+        if (strcmp(shortcut_line[i], shortcut_name) == 0)
+        {
+            strcpy(shortcut_name, shortcut_line[i + 1]);
+            flag = 1;
+            break;
+        }
+    }
+    if (!flag)
+    {
+        fprintf(stderr, "this shortcut doesn't exist,please enter a valid command\n");
+        *flag_not_exist = 1;
+        return;
+    }
+    return;
+}
+
+int replace(int argc, char *const argv[])
+{
+    if (argc < 3 || argv[5] == NULL)
+    {
+        fprintf(stderr, "please enter a valid command\n");
+        return 0;
+    }
+    FILE *shortcut = fopen(".changiz/saving_shortcuts", "r");
+    char file_str[MAX_FILENAME_LENGTH] = "";
+    char shortcut_line[MAX_LINE_LENGTH][MAX_LINE_LENGTH];
+    int line_counter = 0;
+
+    fscanf(shortcut, "%[^\0]s", file_str);
+    fclose(shortcut);
+    char *line = strtok(file_str, "\n");
+    while (line != NULL)
+    {
+        strcpy(shortcut_line[line_counter], line);
+        line_counter++;
+        line = strtok(NULL, "\n");
+    }
+    int flag = 0;
+    for (int i = 0; i < line_counter; i++)
+    {
+        if (strcmp(shortcut_line[i], argv[5]) == 0)
+        {
+            strcpy(shortcut_line[i + 1], argv[3]);
+            flag = 1;
+            break;
+        }
+    }
+    if (!flag)
+    {
+        fprintf(stderr, "this shortcut doesn't exist,please enter a valid command");
+        return 0;
+    }
+    FILE *edited = fopen(".changiz/saving_shortcuts", "w");
+    for (int j = 0; j < line_counter; j++)
+    {
+        fprintf(edited, "%s\n", shortcut_line[j]);
+    }
+    fclose(edited);
+    fprintf(stdout,"Shortcut changed successfully");
+    return 1;
+}
+
+int remove_func(int argc, char *const argv[])
+{
+    if (argv[3] == NULL)
+    {
+        fprintf(stderr, "please enter a valid command\n");
+        return 0;
+    }
+    FILE *shortcut = fopen(".changiz/saving_shortcuts", "r");
+    char file_str[MAX_FILENAME_LENGTH] = "";
+    char shortcut_line[MAX_LINE_LENGTH][MAX_LINE_LENGTH];
+    int line_counter = 0;
+
+    fscanf(shortcut, "%[^\0]s", file_str);
+    fclose(shortcut);
+    char *line = strtok(file_str, "\n");
+    while (line != NULL)
+    {
+        strcpy(shortcut_line[line_counter], line);
+        line_counter++;
+        line = strtok(NULL, "\n");
+    }
+    int flag = 0;
+    for (int i = 0; i < line_counter; i++)
+    {
+        if (strcmp(shortcut_line[i], argv[3]) == 0)
+        {
+            flag = 1;
+            if (i == line_counter - 2)
+            {
+                break;
+            }
+            for (int j = i; j < line_counter; j++)
+            {
+                strcpy(shortcut_line[j], shortcut_line[j + 2]);
+            }
+            break;
+        }
+    }
+    if (!flag)
+    {
+        fprintf(stderr, "this shortcut doesn't exist,please enter a valid command\n");
+        return 0;
+    }
+    strcpy(shortcut_line[line_counter - 1], "\0");
+    strcpy(shortcut_line[line_counter - 2], "\0");
+    FILE *edited = fopen(".changiz/saving_shortcuts", "w");
+    for (int z = 0; z < line_counter - 2; z++)
+    {
+        fprintf(edited, "%s\n", shortcut_line[z]);
+    }
+    fclose(edited);
+    fprintf(stdout,"Shortcut removed successfully");
     return 1;
 }
 
@@ -868,6 +1030,18 @@ int main(int argc, char *argv[])
     else if (strcmp(argv[1], "commit") == 0)
     {
         return commit(argc, argv);
+    }
+    else if (strcmp(argv[1], "set") == 0)
+    {
+        return set(argc, argv);
+    }
+    else if (strcmp(argv[1], "replace") == 0)
+    {
+        return replace(argc, argv);
+    }
+    else if (strcmp(argv[1], "remove") == 0)
+    {
+        return remove_func(argc, argv);
     }
     else if (strcmp(argv[1], "branch") == 0)
     {
