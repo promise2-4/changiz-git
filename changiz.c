@@ -648,7 +648,7 @@ int branch(int argc, char *const argv[])
 int log(int argc, char *const argv[])
 {
     int till = 0;
-    char branch[MAX_FILENAME_LENGTH]="commit/";
+    char branch[MAX_FILENAME_LENGTH]="commit/"; 
     char last_commit[1000] = "";
     FILE *ID = fopen(".changiz/id_number", "r");
     fscanf(ID, "%[^\0]s", last_commit);
