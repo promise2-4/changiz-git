@@ -29,7 +29,7 @@ int commit(int argc, char *const argv[]);
 
 int branch(int argc, char *const argv[]);
 
-int log(int argc, char *const argv[]);
+int log_func(int argc, char *const argv[]);
 
 void print_command(int argc, char *const argv[])
 {
@@ -144,7 +144,7 @@ int configs(int argc, char *const argv[])
             fprintf(file_name, "%s", argv[4]);
             fprintf(stdout, "global user.name config succsessfully");
             fclose(file_name);
-            FILE *file_rn_name = fopen("right_now_config_user_name", "w");
+            FILE *file_rn_name = fopen("current_user_name", "w");
             fprintf(file_rn_name, "%s", argv[4]);
             fclose(file_rn_name);
             return 1;
@@ -155,7 +155,7 @@ int configs(int argc, char *const argv[])
             fprintf(file_email, "%s", argv[4]);
             fprintf(stdout, "global user.email config succsessfully");
             fclose(file_email);
-            FILE *file_rn_email = fopen("right_now_config_user_email", "w");
+            FILE *file_rn_email = fopen("current_user_email", "w");
             fprintf(file_rn_email, "%s", argv[4]);
             fclose(file_rn_email);
             return 1;
@@ -163,7 +163,7 @@ int configs(int argc, char *const argv[])
     }
     else if (strcmp(argv[2], "user.name") == 0)
     {
-        FILE *file_rn_name = fopen("right_now_config_user_name", "w");
+        FILE *file_rn_name = fopen("current_user_name", "w");
         fprintf(file_rn_name, "%s", argv[3]);
         fprintf(stdout, "user.name config succsessfully");
         fclose(file_rn_name);
@@ -171,7 +171,7 @@ int configs(int argc, char *const argv[])
     }
     else if (strcmp(argv[2], "user.email") == 0)
     {
-        FILE *file_rn_email = fopen("right_now_config_user_email", "w");
+        FILE *file_rn_email = fopen("current_user_email", "w");
         fprintf(file_rn_email, "%s", argv[3]);
         fprintf(stdout, "user.email config succsessfully");
         fclose(file_rn_email);
@@ -458,6 +458,7 @@ int reset(int argc, char *const argv[])
         char save_name[1000][1000];
         FILE *fp = fopen(".changiz/save_staging_names", "r");
         fscanf(fp, "%[^\0]s", save_file);
+        fclose(fp);
         if (strlen(save_file) == 0)
         {
             fprintf(stdout, "Nothing exists to reset\n");
@@ -473,14 +474,24 @@ int reset(int argc, char *const argv[])
         char *ptr_name = strtok(save_line[line_counter - 1], "|");
         while (ptr_name != NULL)
         {
-            strcpy(save_name[count_name], ptr_name);
+            struct dirent *exist = search_in_directory(ptr_name, ".changiz/stage");
+            if (exist == NULL)
+            {
+                fprintf(stderr, "No such a file or directory exist");
+                FILE *edit = fopen(".changiz/save_staging_names", "w");
+                for (int i = 0; i < line_counter - 1; i++)
+                {
+                    fprintf(edit, "%s\n", save_line[i]);
+                }
+                fclose(edit);
+                return 0;
+            }
             char command[MAX_COMMAND_LENGTH] = "";
-            sprintf(command, "rm -r .changiz/stage/%s", save_name[count_name]);
+            sprintf(command, "rm -r .changiz/stage/%s", ptr_name);
             system(command);
             count_name++;
             ptr_name = strtok(NULL, "|");
         }
-        fclose(fp);
         FILE *fp2 = fopen(".changiz/save_staging_names", "w");
         for (int i = 0; i < line_counter - 1; i++)
         {
@@ -550,8 +561,28 @@ int commit(int argc, char *const argv[])
         fprintf(stdout, "please enter a valid message");
         return 1;
     }
-    char str_id[100] = "";
 
+    FILE *count = fopen(".changiz/save_staging_names", "r");
+    if (count == NULL)
+    {
+        fprintf(stderr, "Nothing exist to commit");
+        return 1;
+    }
+    char stage_string[MAX_NAME_LENGTH] = "";
+    fscanf(count, "%[^\0]s", stage_string);
+    int counter = 0;
+    char *token = strtok(stage_string, "|");
+    while (token != NULL)
+    {
+        token = strtok(NULL, "|");
+        counter++;
+    }
+    counter--;
+    fclose(count);
+    FILE *delete = fopen(".changiz/save_staging_names", "w");
+    fclose(delete);
+
+    char str_id[100] = "";
     FILE *ID = fopen(".changiz/id_number", "r");
     fscanf(ID, "%[^\0]s", str_id);
     fclose(ID);
@@ -570,29 +601,30 @@ int commit(int argc, char *const argv[])
     sprintf(command, "mv %s %s", ".changiz/stage/*", location);
     system(command);
 
-    FILE *delete = fopen(".changiz/save_staging_names", "w");
-    fclose(delete);
-
     time_t cur = time(NULL);
     strcat(location, "/");
     strcat(location, "data");
 
     char author_name[MAX_NAME_LENGTH] = "";
-    FILE *name = fopen("right_now_config_user_name", "r");
+    FILE *name = fopen("current_user_name", "r");
     fscanf(name, "%[^\0]s", author_name);
     fclose(name);
 
     char author_email[MAX_NAME_LENGTH] = "";
-    FILE *email = fopen("right_now_config_user_email", "r");
+    FILE *email = fopen("current_user_email", "r");
     fscanf(email, "%[^\0]s", author_email);
     fclose(email);
 
     FILE *data = fopen(location, "w");
-    fprintf(data, "commit id: %s\nComment: %s\nDate: %s\nAuthor: %s %s", str_id, argv[3], ctime(&cur), author_name, author_email);
+    fprintf(data, "commit id: %s\nComment: %s\nDate: %sAuthor: %s %s\ncount of commits: %d", str_id, argv[3], ctime(&cur), author_name, author_email, counter);
     fclose(data);
 
+    FILE *author = fopen(".changiz/author_list", "a");
+    fprintf(author, "(%s) %s\n", str_id, author_name);
+    fclose(author);
+
     fprintf(stdout, "commited successfully\n\n");
-    fprintf(stdout, "Commit id:%s\nComment:%s\nDate:%s", str_id, argv[3], ctime(&cur));
+    fprintf(stdout, "Commit id: %s\nComment: %s\nDate: %s", str_id, argv[3], ctime(&cur));
     return 1;
 }
 
@@ -645,45 +677,167 @@ int branch(int argc, char *const argv[])
     return 0;
 }
 
-int log(int argc, char *const argv[])
+int log_func(int argc, char *const argv[])
 {
     int till = 0;
-    char branch[MAX_FILENAME_LENGTH]="commit/"; 
-    char last_commit[1000] = "";
+    char branch[MAX_FILENAME_LENGTH] = "commit/";
+    char check_author[MAX_NAME_LENGTH] = "";
+    int last_id;
     FILE *ID = fopen(".changiz/id_number", "r");
-    fscanf(ID, "%[^\0]s", last_commit);
+    fscanf(ID, "%d", &last_id);
     fclose(ID);
-    int last_id = atoi(last_commit);
     last_id--;
-    sprintf(last_commit, "%d", last_id);
-    if (strcmp(argv[2], "-n") == 0)
+    if (argc > 2)
     {
-        if(argv[3] == NULL){
-            fprintf(stderr, "please enter a valid command");
-            return 1;
+        if (strcmp(argv[2], "-n") == 0)
+        {
+            if (argv[3] == NULL)
+            {
+                fprintf(stderr, "please enter a valid command");
+                return 1;
+            }
+            till = last_id - atoi(argv[3]);
         }
-        till = last_id - atoi(argv);
-    }
-    if (strcmp(argv[2], "-branch") == 0)
-    {
-        if(argv[3] == NULL){
-            fprintf(stderr, "please enter a valid command");
-            return 1;
+        if (strcmp(argv[2], "-branch") == 0)
+        {
+            if (argv[3] == NULL)
+            {
+                fprintf(stderr, "please enter a valid command");
+                return 1;
+            }
+            struct dirent *search = search_in_directory(argv[3], ".changiz/masterbranch/branches");
+            if (search == NULL)
+            {
+                fprintf(stderr, "This branch doesn't exist");
+                return 1;
+            }
+            strcpy(branch, argv[3]);
+            strcat(branch, "/");
         }
-        strcpy(branch, argv[3]);
-        strcat(branch , "/");
+        if (strcmp(argv[2], "-author") == 0)
+        {
+            FILE *find_author = fopen(".changiz/author_list", "r");
+            fscanf(find_author, "%[^\0]s", check_author);
+            fclose(find_author);
+        }
     }
     for (int i = last_id; i > till; i--)
     {
-        char src_location[MAX_NAME_LENGTH] = ".changiz/masterbranch/";
-        strcat(src_location,branch);
-        strcat(src_location,i);
-        strcat(src_location,"/data");
-        char temp[MAX_MESSAGE_LENGTH]="";
-        FILE *data =fopen (src_location,"r");
-        fscanf(data, "%[^\0]s", temp);
-        
+        if (argc > 2 && strcmp(argv[2], "-author") == 0)
+        {
+            char look_for[MAX_NAME_LENGTH] = "";
+            sprintf(look_for, "(%d) %s", i, argv[3]);
+            char *find = strstr(check_author, look_for);
+            if (find == NULL)
+            {
+                continue;
+            }
+        }
+        char str_id[100] = "";
+        sprintf(str_id, "%d", i);
+        char src_location[MAX_NAME_LENGTH] = "";
+        strcpy(src_location, ".changiz/masterbranch/");
+        strcat(src_location, branch);
+        strcat(src_location, str_id);
+        strcat(src_location, "/data");
+        if (argc > 2 && strcmp(argv[2], "-search") == 0)
+        {
+            int flag_exist = 0;
+            for (int j = 3; j < argc; j++)
+            {
+                FILE *search_file = fopen(src_location, "r");
+                char search_temp[MAX_MESSAGE_LENGTH] = "";
+                fscanf(search_file, "%[^\0]s", search_temp);
+                fclose(search_file);
+                char *find_word = strstr(search_temp, argv[i]);
+                if (find_word != NULL)
+                {
+                    flag_exist = 1;
+                    break;
+                }
+            }
+            if (!flag_exist)
+            {
+                continue;
+            }
+        }
+        if (argc > 2 && strcmp(argv[2], "-since") == 0)
+        {
+            FILE *search_date = fopen(src_location, "r");
+            char date_temp[MAX_MESSAGE_LENGTH] = "";
+            fscanf(search_date, "%[^\0]s", date_temp);
+            fclose(search_date);
+            struct stat file_stat;
+            time_t creation_time;
+            if (stat(date_temp, &file_stat) == 0)
+            {
+                creation_time = file_stat.st_mtime;
+            }
+            struct tm time_temp;
+            if (strptime(argv[3], "%Y-%m-%d %H:%M:%S", &time_temp) == NULL)
+            {
+                return -1;
+            }
+            time_t time_compare = mktime(&time_temp);
+            double difference = difftime(creation_time, time_compare);
+            if (difference < 0)
+            {
+                continue;
+            }
+        }
+        if (argc > 2 && strcmp(argv[2], "-before") == 0)
+        {
+            FILE *search_date = fopen(src_location, "r");
+            char date_temp[MAX_MESSAGE_LENGTH] = "";
+            fscanf(search_date, "%[^\0]s", date_temp);
+            fclose(search_date);
+            struct stat file_stat;
+            time_t creation_time;
+            if (stat(date_temp, &file_stat) == 0)
+            {
+                creation_time = file_stat.st_mtime;
+            }
+            struct tm time_temp;
+            if (strptime(argv[3], "%Y-%m-%d %H:%M:%S", &time_temp) == NULL)
+            {
+                return -1;
+            }
+            time_t time_compare = mktime(&time_temp);
+            double difference = difftime(creation_time, time_compare);
+            if (difference > 0)
+            {
+                continue;
+            }
+        }
+        char temp[MAX_MESSAGE_LENGTH] = "";
+        FILE *data = fopen(src_location, "r");
+        fscanf(data, "%[^\r]s", temp);
+        fclose(data);
+        FILE *log = fopen(".changiz/log_file", "a");
+        fprintf(log, "%s\n", temp);
+        char on_branch[MAX_NAME_LENGTH] = "";
+        if (strcmp(branch, "commit/") == 0)
+        {
+            strcpy(on_branch, "masterbranch/");
+        }
+        fprintf(log, "on branch: /%s\n\n", on_branch);
+        fclose(log);
     }
+    FILE *log_check = fopen(".changiz/log_file", "r");
+    if (log_check == NULL)
+    {
+        fprintf(stderr, "Nothing match with your request,please try agian");
+        return 0;
+    }
+    fclose(log_check);
+    char command[MAX_COMMAND_LENGTH] = "";
+    strcat(command, "cat");
+    strcat(command, " ");
+    strcat(command, ".changiz/log_file");
+    system(command);
+    FILE *delete = fopen(".changiz/log_file", "w");
+    fclose(delete);
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -721,6 +875,6 @@ int main(int argc, char *argv[])
     }
     else if (strcmp(argv[1], "log") == 0)
     {
-        return log(argc, argv);
+        return log_func(argc, argv);
     }
 }
