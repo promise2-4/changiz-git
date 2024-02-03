@@ -16,6 +16,7 @@
 #define MAX_NAME_LENGTH 1000
 
  // init, config,add,reset,commit
+ // data baraye oon commiti ke ba beranch dorost mishe
 int init(int argc, char *const argv[]);
 int configs(int argc, char *const argv[]);
 
@@ -124,11 +125,11 @@ int init(int argc, char *const argv[])
                 mkdir(".changiz/stage", 0755);
                 mkdir(".changiz/branches", 0755);
                 mkdir(".changiz/branches/masterbranch", 0755);
-                //mkdir(".changiz/branches/masterbranch/commit", 0755);
                 FILE *current = fopen(".changiz/current_location", "w");
                 fprintf(current, "masterbranch");
                 fclose(current);
                 FILE *commit_id = fopen(".changiz/current_commit_id", "w");
+                fprintf(commit_id, "1");
                 fclose(commit_id);
                 FILE *fp = fopen(".changiz/save_staging_names", "w");
                 fclose(fp);
@@ -634,8 +635,10 @@ int commit(int argc, char *const argv[])
     fclose(ID);
 
     char temp_current[MAX_NAME_LENGTH] = "";
+    char branch[MAX_NAME_LENGTH] = "";
     FILE *current = fopen(".changiz/current_location", "r");
     fscanf(current, "%[^\0]s", temp_current);
+    strcpy(branch, temp_current);
     char current_location[MAX_COMMAND_LENGTH] = ".changiz/branches/";
     strcat(current_location, temp_current);
     FILE *commit_id = fopen(".changiz/current_commit_id", "w");
@@ -657,11 +660,8 @@ int commit(int argc, char *const argv[])
     int id = atoi(str_id);
     if (id > 1)
     {
-        char temp_data[MAX_NAME_LENGTH] = "";
-        strcpy(temp_data, current_location);
-        strcat(temp_data, "/data");
         char command_copy[MAX_COMMAND_LENGTH] = "";
-        sprintf(command_copy, "cp %s/!(%s) %s", current_location, temp_data, dest_location);
+        sprintf(command_copy, "cp %s %s", current_location, dest_location);
         system(command_copy);
     }
     id++;
@@ -685,12 +685,19 @@ int commit(int argc, char *const argv[])
     fclose(email);
 
     time_t cur = time(NULL);
-    strcat(dest_location, "/");
-    strcat(dest_location, "data");
+    FILE *log = fopen(".changiz/log_file", "r");
+    char last_log[MAX_MESSAGE_LENGTH]="";
+    fscanf(log, "%[^\0]s", last_log);
+    fclose(log);
 
-    FILE *data = fopen(dest_location, "w");
-    fprintf(data, "commit id: %s\nComment: %s\nDate: %sAuthor: %s %s\ncount of commits: %d", str_id, argv[3], ctime(&cur), author_name, author_email, counter);
-    fclose(data);
+    FILE *creat_log = fopen(".changiz/log_file", "w");
+    fprintf(creat_log, "Commit id: %s\nComment: %s\nDate: %sAuthor: %s %s\nCount of commits: %d\nOn branch: %s\n\n", str_id, argv[3], ctime(&cur), author_name, author_email, counter, branch);
+    fprintf(creat_log, "°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°\n\n");
+    fclose(creat_log);
+
+    FILE *complete_log = fopen(".changiz/log_file", "a");
+    fprintf(complete_log, "%s",last_log);
+    fclose(complete_log);
 
     FILE *author = fopen(".changiz/author_list", "a");
     fprintf(author, "(%s) %s\n", str_id, author_name);
@@ -701,7 +708,7 @@ int commit(int argc, char *const argv[])
     fclose(add_commit_id);
 
     fprintf(stdout, "commited successfully\n\n");
-    fprintf(stdout, "Commit id: %s\nComment: %s\nDate: %s", str_id, argv[3], ctime(&cur));
+    fprintf(stdout, "›Commit id: %s\n›Comment: %s\n›Date: %s", str_id, argv[3], ctime(&cur));
     return 1;
 }
 
@@ -880,15 +887,15 @@ int branch(int argc, char *const argv[])
             fclose(current);
             char make_current[MAX_NAME_LENGTH] = ".changiz/branches/";
             char temp_commit_id[MAX_NAME_LENGTH] = "";
-            strcat(make_current, make_current);
-            FILE *commit_id = fopen(".changiz/current_commit_id", "w");
+            strcat(make_current, temp_current);
+            FILE *commit_id = fopen(".changiz/current_commit_id", "r");
             fscanf(current, "%[^\0]s", temp_commit_id);
             fclose(commit_id);
             strcat(make_current, "/");
             strcat(make_current, temp_commit_id);
-
+            
             char command[MAX_COMMAND_LENGTH] = "";
-            sprintf(command, "cp -r %s/* %s", make_current, dest_location);
+            sprintf(command, "cp -r %s/* %s", make_current,dest_location);
             system(command);
             fprintf(stdout, "Branch '%s' set up to track remote branch 'masterbranch'", argv[2]);
 
@@ -897,10 +904,7 @@ int branch(int argc, char *const argv[])
             last_id++;
             fprintf(ID_plus, "%d", last_id);
 
-            FILE *add_current = fopen(".changiz/current_location", "w");
-            fprintf(add_current, "%s", argv[2]);
-            fclose(add_current);
-
+            last_id--;
             FILE *add_commit_id = fopen(".changiz/current_commit_id", "w");
             fprintf(add_commit_id, "%d", last_id);
             fclose(add_commit_id);
