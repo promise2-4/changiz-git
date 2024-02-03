@@ -15,10 +15,12 @@
 #define MAX_COMMAND_LENGTH 1000
 #define MAX_NAME_LENGTH 1000
 
+ // init, config,add,reset,commit
 int init(int argc, char *const argv[]);
 int configs(int argc, char *const argv[]);
 
 struct dirent *search_in_directory(char *search_file, char *address);
+struct dirent *HEAD_finder(char *address);
 
 int check_for_add(char *filename, char *address);
 int add(int argc, char *const argv[]);
@@ -34,6 +36,8 @@ int remove_func(int argc, char *const argv[]);
 int branch(int argc, char *const argv[]);
 
 int log_func(int argc, char *const argv[]);
+
+int checkout(int argc, char *const argv[]);
 
 void print_command(int argc, char *const argv[])
 {
@@ -51,12 +55,13 @@ int init(int argc, char *const argv[])
     {
         return 1;
     }
-    FILE *file_name = fopen("global_config_user_name", "r");
-    FILE *file_email = fopen("global_config_user_email", "r");
+    FILE *file_name = fopen("config/global_config_user_name", "r");
+    FILE *file_email = fopen("config/global_config_user_email", "r");
     if ((file_name == NULL) && (file_email == NULL))
     {
         fprintf(stderr, "Error no user.name exists!\n");
         fprintf(stderr, "Error no user.email exists!");
+        mkdir("config", 0755);
         return 1;
     }
     else if ((file_name == NULL) && (file_email != NULL))
@@ -117,9 +122,14 @@ int init(int argc, char *const argv[])
             {
                 fprintf(stdout, "Initialized empty changiz repository");
                 mkdir(".changiz/stage", 0755);
-                mkdir(".changiz/masterbranch", 0755);
-                mkdir(".changiz/masterbranch/commit", 0755);
-                mkdir(".changiz/masterbranch/branches", 0755);
+                mkdir(".changiz/branches", 0755);
+                mkdir(".changiz/branches/masterbranch", 0755);
+                //mkdir(".changiz/branches/masterbranch/commit", 0755);
+                FILE *current = fopen(".changiz/current_location", "w");
+                fprintf(current, "masterbranch");
+                fclose(current);
+                FILE *commit_id = fopen(".changiz/current_commit_id", "w");
+                fclose(commit_id);
                 FILE *fp = fopen(".changiz/save_staging_names", "w");
                 fclose(fp);
                 FILE *ID = fopen(".changiz/id_number", "w");
@@ -144,22 +154,22 @@ int configs(int argc, char *const argv[])
     {
         if (strcmp(argv[3], "user.name") == 0)
         {
-            FILE *file_name = fopen("global_config_user_name", "w");
+            FILE *file_name = fopen("config/global_config_user_name", "w");
             fprintf(file_name, "%s", argv[4]);
             fprintf(stdout, "global user.name config succsessfully");
             fclose(file_name);
-            FILE *file_rn_name = fopen("current_user_name", "w");
+            FILE *file_rn_name = fopen("config/current_user_name", "w");
             fprintf(file_rn_name, "%s", argv[4]);
             fclose(file_rn_name);
             return 1;
         }
         else if (strcmp(argv[3], "user.email") == 0)
         {
-            FILE *file_email = fopen("global_config_user_email", "w");
+            FILE *file_email = fopen("config/global_config_user_email", "w");
             fprintf(file_email, "%s", argv[4]);
             fprintf(stdout, "global user.email config succsessfully");
             fclose(file_email);
-            FILE *file_rn_email = fopen("current_user_email", "w");
+            FILE *file_rn_email = fopen("config/current_user_email", "w");
             fprintf(file_rn_email, "%s", argv[4]);
             fclose(file_rn_email);
             return 1;
@@ -167,7 +177,7 @@ int configs(int argc, char *const argv[])
     }
     else if (strcmp(argv[2], "user.name") == 0)
     {
-        FILE *file_rn_name = fopen("current_user_name", "w");
+        FILE *file_rn_name = fopen("config/current_user_name", "w");
         fprintf(file_rn_name, "%s", argv[3]);
         fprintf(stdout, "user.name config succsessfully");
         fclose(file_rn_name);
@@ -175,7 +185,7 @@ int configs(int argc, char *const argv[])
     }
     else if (strcmp(argv[2], "user.email") == 0)
     {
-        FILE *file_rn_email = fopen("current_user_email", "w");
+        FILE *file_rn_email = fopen("config/current_user_email", "w");
         fprintf(file_rn_email, "%s", argv[3]);
         fprintf(stdout, "user.email config succsessfully");
         fclose(file_rn_email);
@@ -191,6 +201,30 @@ struct dirent *search_in_directory(char *search_file, char *address)
     while ((entry = readdir(inside_dir)) != NULL)
     {
         if (strcmp(entry->d_name, search_file) == 0)
+        {
+            return entry;
+        }
+    }
+    return NULL;
+}
+struct dirent *HEAD_finder(char *address)
+{
+    struct dirent *entry;
+    DIR *inside_address = opendir(address);
+    int max_id = 0;
+    while ((entry = readdir(inside_address)) != NULL)
+    {
+        int temp = atoi(entry->d_name);
+        if (temp > max_id)
+        {
+            max_id = temp;
+        }
+    }
+    char str_id[MAX_NAME_LENGTH] = "";
+    sprintf(str_id, "%d", max_id);
+    while ((entry = readdir(inside_address)) != NULL)
+    {
+        if (strcmp(entry->d_name, str_id) == 0)
         {
             return entry;
         }
@@ -478,7 +512,7 @@ int reset(int argc, char *const argv[])
         char *ptr_name = strtok(save_line[line_counter - 1], "|");
         while (ptr_name != NULL)
         {
-            struct dirent *exist = search_in_directory(ptr_name, ".changiz/stage");
+            struct dirent *exist = search_in_directory(ptr_name, ".changiz/stage/");
             if (exist == NULL)
             {
                 fprintf(stderr, "No such a file or directory exist");
@@ -569,7 +603,7 @@ int commit(int argc, char *const argv[])
     {
         int flag_not_exist = 0;
         find_shortcut(argv[3], &flag_not_exist);
-        if (flag_not_exist==1)
+        if (flag_not_exist == 1)
         {
             return 0;
         }
@@ -599,41 +633,72 @@ int commit(int argc, char *const argv[])
     fscanf(ID, "%[^\0]s", str_id);
     fclose(ID);
 
-    char location[MAX_COMMAND_LENGTH] = ".changiz/masterbranch/commit/";
-    strcat(location, str_id);
+    char temp_current[MAX_NAME_LENGTH] = "";
+    FILE *current = fopen(".changiz/current_location", "r");
+    fscanf(current, "%[^\0]s", temp_current);
+    char current_location[MAX_COMMAND_LENGTH] = ".changiz/branches/";
+    strcat(current_location, temp_current);
+    FILE *commit_id = fopen(".changiz/current_commit_id", "w");
+    fscanf(current, "%[^\0]s", temp_current);
+    fclose(commit_id);
+    strcat(current_location, "/");
+    strcat(current_location, temp_current);
+
+    char dest_location[MAX_NAME_LENGTH] = "";
+    char *ptr_slash = strrchr(current_location, '/');
+    if (ptr_slash != NULL)
+    {
+        strncpy(dest_location, current_location, ptr_slash - current_location);
+    }
+    strcat(dest_location, "/");
+    strcat(dest_location, str_id);
+
+    mkdir(dest_location, 0755);
     int id = atoi(str_id);
+    if (id > 1)
+    {
+        char temp_data[MAX_NAME_LENGTH] = "";
+        strcpy(temp_data, current_location);
+        strcat(temp_data, "/data");
+        char command_copy[MAX_COMMAND_LENGTH] = "";
+        sprintf(command_copy, "cp %s/!(%s) %s", current_location, temp_data, dest_location);
+        system(command_copy);
+    }
     id++;
 
     FILE *ID2 = fopen(".changiz/id_number", "w");
     fprintf(ID2, "%d", id);
     fclose(ID2);
-    mkdir(location, 0755);
 
     char command[MAX_COMMAND_LENGTH] = "";
-    sprintf(command, "mv %s %s", ".changiz/stage/*", location);
+    sprintf(command, "mv .changiz/stage/* %s", dest_location);
     system(command);
 
-    time_t cur = time(NULL);
-    strcat(location, "/");
-    strcat(location, "data");
-
     char author_name[MAX_NAME_LENGTH] = "";
-    FILE *name = fopen("current_user_name", "r");
+    FILE *name = fopen("config/current_user_name", "r");
     fscanf(name, "%[^\0]s", author_name);
     fclose(name);
 
     char author_email[MAX_NAME_LENGTH] = "";
-    FILE *email = fopen("current_user_email", "r");
+    FILE *email = fopen("config/current_user_email", "r");
     fscanf(email, "%[^\0]s", author_email);
     fclose(email);
 
-    FILE *data = fopen(location, "w");
+    time_t cur = time(NULL);
+    strcat(dest_location, "/");
+    strcat(dest_location, "data");
+
+    FILE *data = fopen(dest_location, "w");
     fprintf(data, "commit id: %s\nComment: %s\nDate: %sAuthor: %s %s\ncount of commits: %d", str_id, argv[3], ctime(&cur), author_name, author_email, counter);
     fclose(data);
 
     FILE *author = fopen(".changiz/author_list", "a");
     fprintf(author, "(%s) %s\n", str_id, author_name);
     fclose(author);
+
+    FILE *add_commit_id = fopen(".changiz/current_commit_id", "w");
+    fprintf(add_commit_id, "%s", str_id);
+    fclose(add_commit_id);
 
     fprintf(stdout, "commited successfully\n\n");
     fprintf(stdout, "Commit id: %s\nComment: %s\nDate: %s", str_id, argv[3], ctime(&cur));
@@ -650,7 +715,7 @@ int set(int argc, char *const argv[])
     FILE *shortcut = fopen(".changiz/saving_shortcuts", "a");
     fprintf(shortcut, "%s\n%s\n", argv[5], argv[3]);
     fclose(shortcut);
-    fprintf(stdout,"Shortcut added successfully");
+    fprintf(stdout, "Shortcut added successfully");
     return 1;
 }
 
@@ -731,7 +796,7 @@ int replace(int argc, char *const argv[])
         fprintf(edited, "%s\n", shortcut_line[j]);
     }
     fclose(edited);
-    fprintf(stdout,"Shortcut changed successfully");
+    fprintf(stdout, "Shortcut changed successfully");
     return 1;
 }
 
@@ -786,7 +851,7 @@ int remove_func(int argc, char *const argv[])
         fprintf(edited, "%s\n", shortcut_line[z]);
     }
     fclose(edited);
-    fprintf(stdout,"Shortcut removed successfully");
+    fprintf(stdout, "Shortcut removed successfully");
     return 1;
 }
 
@@ -794,27 +859,52 @@ int branch(int argc, char *const argv[])
 {
     if (argc == 3)
     {
-        struct dirent *entry = search_in_directory(argv[2], ".changiz/masterbranch/branches");
+        struct dirent *entry = search_in_directory(argv[2], ".changiz/branches");
         if (entry == NULL)
         {
-            char dest_location[MAX_COMMAND_LENGTH] = ".changiz/masterbranch/branches/";
+            char dest_location[MAX_COMMAND_LENGTH] = ".changiz/branches/";
             strcat(dest_location, argv[2]);
             mkdir(dest_location, 0755);
 
             char last_commit[1000] = "";
             FILE *ID = fopen(".changiz/id_number", "r");
             fscanf(ID, "%[^\0]s", last_commit);
+            strcat(dest_location, "/");
+            strcat(dest_location, last_commit);
+            mkdir(dest_location, 0755);
             fclose(ID);
-            int last_id = atoi(last_commit);
-            last_id--;
-            sprintf(last_commit, "%d", last_id);
-            char src_location[MAX_COMMAND_LENGTH] = ".changiz/masterbranch/commit/";
-            strcat(src_location, last_commit);
+
+            char temp_current[MAX_NAME_LENGTH] = "";
+            FILE *current = fopen(".changiz/current_location", "r");
+            fscanf(current, "%[^\0]s", temp_current);
+            fclose(current);
+            char make_current[MAX_NAME_LENGTH] = ".changiz/branches/";
+            char temp_commit_id[MAX_NAME_LENGTH] = "";
+            strcat(make_current, make_current);
+            FILE *commit_id = fopen(".changiz/current_commit_id", "w");
+            fscanf(current, "%[^\0]s", temp_commit_id);
+            fclose(commit_id);
+            strcat(make_current, "/");
+            strcat(make_current, temp_commit_id);
 
             char command[MAX_COMMAND_LENGTH] = "";
-            sprintf(command, "cp -r %s %s", src_location, dest_location);
+            sprintf(command, "cp -r %s/* %s", make_current, dest_location);
             system(command);
             fprintf(stdout, "Branch '%s' set up to track remote branch 'masterbranch'", argv[2]);
+
+            FILE *ID_plus = fopen(".changiz/id_number", "w");
+            int last_id = atoi(last_commit);
+            last_id++;
+            fprintf(ID_plus, "%d", last_id);
+
+            FILE *add_current = fopen(".changiz/current_location", "w");
+            fprintf(add_current, "%s", argv[2]);
+            fclose(add_current);
+
+            FILE *add_commit_id = fopen(".changiz/current_commit_id", "w");
+            fprintf(add_commit_id, "%d", last_id);
+            fclose(add_commit_id);
+
             return 1;
         }
         else
@@ -826,7 +916,7 @@ int branch(int argc, char *const argv[])
     if (argv[2] == NULL)
     {
         struct dirent *entry;
-        DIR *branch_check = opendir(".changiz/masterbranch/branches");
+        DIR *branch_check = opendir(".changiz/branches");
         while ((entry = readdir(branch_check)) != NULL)
         {
             fprintf(stdout, "->%s\n", entry->d_name);
@@ -867,7 +957,7 @@ int log_func(int argc, char *const argv[])
                 fprintf(stderr, "please enter a valid command");
                 return 1;
             }
-            struct dirent *search = search_in_directory(argv[3], ".changiz/masterbranch/branches");
+            struct dirent *search = search_in_directory(argv[3], ".changiz/branches");
             if (search == NULL)
             {
                 fprintf(stderr, "This branch doesn't exist");
@@ -898,7 +988,7 @@ int log_func(int argc, char *const argv[])
         char str_id[100] = "";
         sprintf(str_id, "%d", i);
         char src_location[MAX_NAME_LENGTH] = "";
-        strcpy(src_location, ".changiz/masterbranch/");
+        strcpy(src_location, ".changiz/branches/masterbranch/");
         strcat(src_location, branch);
         strcat(src_location, str_id);
         strcat(src_location, "/data");
@@ -1002,11 +1092,144 @@ int log_func(int argc, char *const argv[])
     return 0;
 }
 
+int checkout(int argc, char *const argv[])
+{
+    if (argc < 2)
+    {
+        fprintf(stderr, "please enter a valid command");
+        return 1;
+    }
+    FILE *check_stage = fopen(".changiz/save_staging_names", "r");
+    if (check_stage != NULL)
+    {
+        fprintf(stderr, "you need to commit changes first!");
+        return 0;
+    }
+    if (atoi(argv[2]) == 0)
+    {
+        struct dirent *exist_branch = search_in_directory(argv[2], ".changiz/branches");
+        if (exist_branch == NULL)
+        {
+            fprintf(stderr, "This branch name doesn't exist");
+            return 0;
+        }
+        else
+        {
+            char temp_current[MAX_NAME_LENGTH] = "";
+            FILE *current = fopen(".changiz/current_location", "r");
+            fscanf(current, "%[^\0]s", temp_current);
+            fclose(current);
+            char make_current[MAX_NAME_LENGTH] = ".changiz/branches/";
+            char temp_commit_id[MAX_NAME_LENGTH] = "";
+            strcat(make_current, make_current);
+            FILE *commit_id = fopen(".changiz/current_commit_id", "w");
+            fscanf(current, "%[^\0]s", temp_commit_id);
+            fclose(commit_id);
+            strcat(make_current, "/");
+            strcat(make_current, temp_commit_id);
+
+            struct dirent *local_files;
+            DIR *local = opendir("folder");
+            while ((local_files = readdir(local)) != NULL)
+            {
+                struct dirent *track = search_in_directory(local_files->d_name, make_current);
+                if (track == NULL)
+                {
+                    fprintf(stderr, "You can't checkout because,%s is not commit yet", local_files->d_name);
+                    return 0;
+                }
+            }
+            closedir(local);
+            char new_current[MAX_NAME_LENGTH] = ".changiz/branches/";
+            strcat(new_current, argv[2]);
+            struct dirent *head = HEAD_finder(new_current);
+            strcat(new_current, "/");
+            strcat(new_current, head->d_name);
+
+            FILE *add_current = fopen(".changiz/current_location", "w");
+            fprintf(add_current, "%s", argv[2]);
+            fclose(add_current);
+
+            FILE *add_commit_id = fopen(".changiz/current_commit_id", "w");
+            fprintf(add_commit_id, "%s", head->d_name);
+            fclose(add_commit_id);
+
+            char temp_data[MAX_NAME_LENGTH] = "";
+            strcpy(temp_data, new_current);
+            strcat(temp_data, "/");
+            strcat(temp_data, "data");
+
+            char command_rm[MAX_COMMAND_LENGTH] = "";
+            sprintf(command_rm, "rm -r %s/*", "folder");
+            system(command_rm);
+
+            char command[MAX_COMMAND_LENGTH] = "";
+            sprintf(command, "cp %s/!(%s) %s", new_current, temp_data, "folder");
+            system(command);
+
+            fprintf(stdout, "Checkout to branch %s done successfully", argv[2]);
+            return 1;
+        }
+    }
+    else
+    {
+        struct dirent *exist_branch = search_in_directory(argv[2], ".changiz/branches");
+        if (exist_branch == NULL)
+        {
+            fprintf(stderr, "This branch name doesn't exist");
+            return 0;
+        }
+        else
+        {
+            char temp_current[MAX_NAME_LENGTH] = "";
+            FILE *current = fopen(".changiz/current_location", "r");
+            fscanf(current, "%[^\0]s", temp_current);
+            struct dirent *local_files;
+            DIR *local = opendir("folder");
+            while ((local_files = readdir(local)) != NULL)
+            {
+                struct dirent *track = search_in_directory(local_files->d_name, temp_current);
+                if (track == NULL)
+                {
+                    fprintf(stderr, "You can't checkout because,%s is not commit yet", local_files->d_name);
+                    return 0;
+                }
+            }
+            closedir(local);
+            char new_current[MAX_NAME_LENGTH] = ".changiz/branches/";
+            strcat(new_current, argv[2]);
+            struct dirent *head = HEAD_finder(new_current);
+            strcat(new_current, "/");
+            strcat(new_current, head->d_name);
+
+            FILE *add_current = fopen(".changiz/current_location", "w");
+            fprintf(add_current, "%s", new_current);
+            fclose(add_current);
+
+            char temp_data[MAX_NAME_LENGTH] = "";
+            strcpy(temp_data, new_current);
+            strcat(temp_data, "/");
+            strcat(temp_data, "data");
+
+            char command_rm[MAX_COMMAND_LENGTH] = "";
+            sprintf(command_rm, "rm -r %s/*", "folder");
+            system(command_rm);
+
+            char command[MAX_COMMAND_LENGTH] = "";
+            sprintf(command, "cp %s/!(%s) %s", new_current, temp_data, "folder");
+            system(command);
+
+            fprintf(stdout, "Checkout to branch %s done successfully", argv[2]);
+            return 1;
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        fprintf(stdout, "please enter a valid command");
+        fprintf(stderr, "please enter a valid command");
         return 1;
     }
     print_command(argc, argv);
@@ -1050,5 +1273,9 @@ int main(int argc, char *argv[])
     else if (strcmp(argv[1], "log") == 0)
     {
         return log_func(argc, argv);
+    }
+    else if (strcmp(argv[1], "checkout") == 0)
+    {
+        return checkout(argc, argv);
     }
 }
