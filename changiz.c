@@ -44,6 +44,8 @@ int revert(int argc, char *const argv[]);
 
 int tag(int argc, char *const argv[]);
 
+int grep(int argc, char *const argv[]);
+
 void print_command(int argc, char *const argv[])
 {
     for (int i = 0; i < argc; i++)
@@ -1673,6 +1675,8 @@ int tag(int argc, char *const argv[])
                     FILE *tag_file = fopen(tag_name_data, "w");
                     fprintf(tag_file, "tag: %s\ncommit: %s\nDate: %sAuthor: %s <%s>\nMessage: -\n", argv[3], tag_commit_id, current_time, author_name, author_email);
                     fclose(tag_file);
+
+                    fprintf(stdout , "tag added successfully");
                     return 1;
                 }
                 else
@@ -1697,6 +1701,8 @@ int tag(int argc, char *const argv[])
                 FILE *tag_file = fopen(tag_name_data, "w");
                 fprintf(tag_file, "tag: %s\ncommit: %s\nDate: %sAuthor: %s <%s>\nMessage: %s\n", argv[3], tag_commit_id, current_time, author_name, author_email, tag_message);
                 fclose(tag_file);
+
+                fprintf(stdout , "tag added successfully");
                 return 1;
             }
             if (argc > 4 && argc < 9)
@@ -1714,9 +1720,18 @@ int tag(int argc, char *const argv[])
                     if (strcmp(argv[4], "-m") == 0)
                     {
                         strcpy(tag_message, argv[5]);
-                        if (strcmp(argv[6], "-c") == 0)
+                        if (argc > 6)
                         {
-                            strcpy(tag_commit_id, argv[7]);
+                            if (strcmp(argv[6], "-c") == 0)
+                            {
+                                strcpy(tag_commit_id, argv[7]);
+                            }
+                            else
+                            {
+                                FILE *commit_id = fopen(".changiz/current_commit_id", "r");
+                                fscanf(commit_id, "%[^\0]s", tag_commit_id);
+                                fclose(commit_id);
+                            }
                         }
                         else
                         {
@@ -1732,6 +1747,8 @@ int tag(int argc, char *const argv[])
                     FILE *tag_file = fopen(tag_name_data, "w");
                     fprintf(tag_file, "tag: %s\ncommit: %s\nDate: %sAuthor: %s <%s>\nMessage: %s\n", argv[3], tag_commit_id, current_time, author_name, author_email, tag_message);
                     fclose(tag_file);
+
+                    fprintf(stdout , "tag added successfully");
                     return 1;
                 }
                 else
@@ -1747,9 +1764,18 @@ int tag(int argc, char *const argv[])
                         if (strcmp(argv[4], "-m") == 0)
                         {
                             strcpy(tag_message, argv[5]);
-                            if (strcmp(argv[6], "-c") == 0)
+                            if (argc > 6)
                             {
-                                strcpy(tag_commit_id, argv[7]);
+                                if (strcmp(argv[6], "-c") == 0)
+                                {
+                                    strcpy(tag_commit_id, argv[7]);
+                                }
+                                else
+                                {
+                                    FILE *commit_id = fopen(".changiz/current_commit_id", "r");
+                                    fscanf(commit_id, "%[^\0]s", tag_commit_id);
+                                    fclose(commit_id);
+                                }
                             }
                             else
                             {
@@ -1765,6 +1791,8 @@ int tag(int argc, char *const argv[])
                         FILE *tag_file = fopen(tag_name_data, "w");
                         fprintf(tag_file, "tag: %s\ncommit: %s\nDate: %sAuthor: %s <%s>\nMessage: %s\n", argv[3], tag_commit_id, current_time, author_name, author_email, tag_message);
                         fclose(tag_file);
+
+                        fprintf(stdout , "tag added successfully");
                         return 1;
                     }
                     else
@@ -1784,6 +1812,7 @@ int tag(int argc, char *const argv[])
             system(command_cat);
         }
     }
+    // bug
     else if (argc == 2)
     {
         char save_tag[MAX_MESSAGE_LENGTH] = "";
@@ -1797,25 +1826,33 @@ int tag(int argc, char *const argv[])
                 line_count++;
             }
         }
-        char min[1000] = "zzzzzzzzzzzz";
+        char min[1000];
         for (int i = 0; i < line_count; i++)
         {
+            strcpy(min, "zzzzzzzzzzzz");
             while (fgets(save_tag, 10000, tag_list) != NULL)
             {
-                if (strcmp(min, save_tag) > 0)
+                printf("%s\n", save_tag);
+                if (strcmp(save_tag, min) < 0)
                 {
+                    
                     strcpy(min, save_tag);
                 }
             }
-            fprintf(stdout, "%s\n", save_tag);
+            fprintf(stdout, "%s\n", min);
         }
         return 1;
     }
-    else{
+    else
+    {
         fprintf(stderr, "please enter a valid command");
         return 1;
     }
     return 0;
+}
+
+int grep(int argc, char *const argv[]){
+
 }
 
 int main(int argc, char *argv[])
@@ -1882,5 +1919,9 @@ int main(int argc, char *argv[])
     else if (strcmp(argv[1], "tag") == 0)
     {
         return tag(argc, argv);
+    }
+    else if (strcmp(argv[1], "grep") == 0)
+    {
+        return grep(argc, argv);
     }
 }
