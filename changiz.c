@@ -21,6 +21,7 @@
 #define RED "\e[0;31m"
 #define GREEN "\e[0;32m"
 #define BLU "\e[0;34m"
+#define PURPLE "\e[0;35m"
 
 int init(int argc, char *const argv[]);
 int configs(int argc, char *const argv[]);
@@ -52,6 +53,8 @@ int revert(int argc, char *const argv[]);
 int tag(int argc, char *const argv[]);
 
 int grep(int argc, char *const argv[]);
+
+int pre_commit(int argc, char *const argv[]);
 
 void print_command(int argc, char *const argv[])
 {
@@ -162,6 +165,8 @@ int init(int argc, char *const argv[])
                 fclose(status);
                 FILE *tag = fopen(".changiz/tag_list", "w");
                 fclose(tag);
+                FILE *list = fopen(".changiz/hook_list", "w");
+                fclose(list);
 
                 char command[MAX_COMMAND_LENGTH] = "";
                 sprintf(command, "cp -r /Users/parmis/Desktop/project/FOP/config_global/config_user_name .changiz/config");
@@ -1972,6 +1977,283 @@ int grep(int argc, char *const argv[])
     return 1;
 }
 
+int diff(int argc, char *const argv[])
+{
+    char get_line1[MAX_LINE_LENGTH] = "";
+    char get_line2[MAX_LINE_LENGTH] = "";
+    char lines1[MAX_LINE_LENGTH][MAX_LINE_LENGTH];
+    char lines2[MAX_LINE_LENGTH][MAX_LINE_LENGTH];
+    char x, y;
+    int i = 0, j = 0;
+    int line_counter1 = 0, line_counter2 = 0;
+    if (argc > 5)
+    {
+        FILE *f1 = fopen(argv[3], "r");
+        while (fgets(get_line1, 1000, f1) != NULL)
+        {
+            while ((x = fgetc(f1)) != EOF)
+            {
+                if (x == '\n')
+                {
+                    line_counter1++;
+                    if (line_counter1 >= atoi(argv[6]) || line_counter1 <= atoi(argv[7]))
+                    {
+                        strcpy(lines1[i], get_line1);
+                        i++;
+                        break;
+                    }
+                    continue;
+                }
+            }
+        }
+        FILE *f2 = fopen(argv[4], "r");
+        while (fgets(get_line2, 1000, f2) != NULL)
+        {
+            while ((x = fgetc(f1)) != EOF)
+            {
+                if (x == '\n')
+                {
+                    line_counter1++;
+                    if (line_counter1 >= atoi(argv[9]) || line_counter1 <= atoi(argv[10]))
+                    {
+                        strcpy(lines2[j], get_line2);
+                        j++;
+                        break;
+                    }
+                    continue;
+                }
+            }
+        }
+        int pluser1 = line_counter1 - i;
+        int pluser2 = line_counter2 - j;
+        if (i == j)
+        {
+            for (int a = 0; a < i; a++)
+            {
+                if (strcmp(lines1[a], lines2[a]) != 0)
+                {
+                    fprintf(stdout, "»»»»»»»»\n");
+                    fprintf(stdout, "<%s> - <%d>\n", argv[3], a + pluser1);
+                    fprintf(stdout, BLU "%s\n" COLOR_RESET, lines1[a]);
+                    fprintf(stdout, "<%s> - <%d>\n", argv[4], a + pluser2);
+                    fprintf(stdout, PURPLE "%s\n" COLOR_RESET, lines2[a]);
+                    fprintf(stdout, "»»»»»»»»\n");
+                }
+            }
+            return 1;
+        }
+        if (i > j)
+        {
+            for (int a = 0; a < i - j; a++)
+            {
+                if (strcmp(lines1[a], lines2[a]) != 0)
+                {
+                    fprintf(stdout, "»»»»»»»»\n");
+                    fprintf(stdout, "<%s> - <%d>\n", argv[3], a + pluser1);
+                    fprintf(stdout, BLU "%s\n" COLOR_RESET, lines1[a]);
+                    fprintf(stdout, "<%s> - <%d>\n", argv[4], a + pluser2);
+                    fprintf(stdout, PURPLE "%s\n" COLOR_RESET, lines2[a]);
+                    fprintf(stdout, "»»»»»»»»\n");
+                }
+            }
+            fprintf(stdout, "extra lines in file1:\n");
+            for (int b = i - j; b < i; b++)
+            {
+                fprintf(stdout, BLU "%s\n" COLOR_RESET, lines1[b]);
+            }
+            return 1;
+        }
+        if (i < j)
+        {
+            for (int a = 0; a < j - i; a++)
+            {
+                if (strcmp(lines1[a], lines2[a]) != 0)
+                {
+                    fprintf(stdout, "»»»»»»»»\n");
+                    fprintf(stdout, "<%s> - <%d>\n", argv[3], a + pluser1);
+                    fprintf(stdout, BLU "%s\n" COLOR_RESET, lines1[a]);
+                    fprintf(stdout, "<%s> - <%d>\n", argv[4], a + pluser2);
+                    fprintf(stdout, PURPLE "%s\n" COLOR_RESET, lines2[a]);
+                    fprintf(stdout, "»»»»»»»»\n");
+                }
+            }
+            fprintf(stdout, "extra lines in file2:\n");
+            for (int b = j - i; b < j; b++)
+            {
+                fprintf(stdout, PURPLE "%s\n" COLOR_RESET, lines2[b]);
+            }
+            return 1;
+        }
+    }
+    FILE *f1 = fopen(argv[3], "r");
+    FILE *f2 = fopen(argv[4], "r");
+    while (fgets(get_line1, 1000, f1) != NULL && fgets(get_line2, 1000, f2) != NULL)
+    {
+        line_counter1++;
+        line_counter2++;
+        if (strcmp(get_line1, get_line2) != 0)
+        {
+            fprintf(stdout, "»»»»»»»»\n");
+            fprintf(stdout, "<%s> - <%d>\n", argv[3], line_counter1);
+            fprintf(stdout, BLU "%s\n" COLOR_RESET, get_line1);
+            fprintf(stdout, "<%s> - <%d>\n", argv[4], line_counter2);
+            fprintf(stdout, PURPLE "%s\n" COLOR_RESET, get_line2);
+            fprintf(stdout, "»»»»»»»»\n");
+        }
+    }
+    if (fgets(get_line1, 1000, f1) != NULL)
+    {
+        fprintf(stdout, "extra lines in file1:\n");
+        while (fgets(get_line1, 1000, f1) != NULL)
+        {
+            fprintf(stdout, BLU "%s\n" COLOR_RESET, get_line1);
+        }
+        return 1;
+    }
+    if (fgets(get_line2, 1000, f2) != NULL)
+    {
+        fprintf(stdout, "extra lines in file2:\n");
+        while (fgets(get_line2, 1000, f2) != NULL)
+        {
+            fprintf(stdout, PURPLE "%s\n" COLOR_RESET, get_line2);
+        }
+        return 1;
+    }
+    return 1;
+}
+
+// hooks
+const char *file_size_check(char *file_address)
+{
+    FILE *list = fopen(".changiz/hook_list", "a");
+    fprintf(list, "file-size-check\n");
+    FILE *fp = fopen(file_address, "r");
+    fseek(fp, 0L, SEEK_END);
+    long int res = ftell(fp);
+    res = res / (1024 * 1024);
+    if (res < 5)
+    {
+        return "PASSED";
+    }
+    return "FAILED";
+}
+
+const char *character_limit(char *file_address)
+{
+    FILE *list = fopen(".changiz/hook_list", "a");
+    fprintf(list, "file-size-check\n");
+
+    if (strstr(file_address, ".c") != NULL || strstr(file_address, ".txt") != NULL)
+    {
+        if (strlen(file_address) < 20000)
+        {
+            return "PASSED";
+        }
+        else
+        {
+            return "FAILED";
+        }
+    }
+    else
+    {
+        return "SKIPPED";
+    }
+}
+const char *todo_check(char *file_address){
+    if (strstr(file_address, ".c") != NULL){
+        return "SKIPPED";
+    }
+    if(strstr(file_address, ".txt") != NULL){
+        FILE *fp = fopen(file_address, "r");
+        while (fgets(file_address, 1000, fp) != NULL)
+        {
+            if (strlen(file_address) < 20000)
+        {
+            return "PASSED";
+        }
+        else
+        {
+            return "FAILED";
+        }
+        }
+    }
+    return 1;
+
+}
+const char *format_check(char *file_address){
+    if (strstr(file_address, ".c") != NULL){
+        return "SKIPPED";
+    }
+    if(strstr(file_address, ".txt") != NULL){
+        FILE *fp = fopen(file_address, "r");
+        while (fgets(file_address, 1000, fp) != NULL)
+        {
+            if (strlen(file_address) < 20000)
+        {
+            return "PASSED";
+        }
+        else
+        {
+            return "FAILED";
+        }
+        }
+    }
+    return 1;
+    
+}
+
+int pre_commit(int argc, char *const argv[])
+{
+    if (argc == 4 && strcmp(argv[3], "list") == 0)
+    {
+        char command_cat[MAX_COMMAND_LENGTH] = "";
+        sprintf(command_cat, "cat .changiz/hook_list");
+        system(command_cat);
+    }
+    return 1;
+    if (argc == 2)
+    {
+        char situation[100][100] = "";
+        struct dirent *look_file;
+        DIR *stage = opendir(".changiz/stage");
+
+        while ((look_file = readdir(stage)) != NULL)
+        {
+            int i = 0;
+            strcpy(situation[i], todo_check(look_file->d_name));
+            i++;
+            strcpy(situation[i], character_limit(look_file->d_name));
+            i++;
+            strcpy(situation[i], format_check(look_file->d_name));
+            i++;
+            strcpy(situation[i], balance_braces(look_file->d_name));
+            i++;
+            strcpy(situation[i], file_size_check(look_file->d_name));
+            i++;
+            strcpy(situation[i], indentation_check(look_file->d_name));
+            i++;
+        }
+        for (int j = 0; j < 9; j++)
+        {
+            fprintf(stdout, BLU "\"hook-id %d\"..................." COLOR_RESET, j);
+            if (strcmp(situation[j], "PASSED"))
+            {
+                fprintf(stdout, GREEN "%s\n" COLOR_RESET, situation[j]);
+                continue;
+            }
+            if (strcmp(situation[j], "FAILED"))
+            {
+                fprintf(stdout, RED "%s\n" COLOR_RESET, situation[j]);
+                continue;
+            }if (strcmp(situation[j], "SKIPPED"))
+            {
+                fprintf(stdout, YELLOW "%s\n" COLOR_RESET, situation[j]);
+                continue;
+            }
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2)
@@ -2040,6 +2322,14 @@ int main(int argc, char *argv[])
     else if (strcmp(argv[1], "grep") == 0)
     {
         return grep(argc, argv);
+    }
+    else if (strcmp(argv[1], "diff") == 0)
+    {
+        return diff(argc, argv);
+    }
+    else if (strcmp(argv[1], "pre-commit") == 0)
+    {
+        return pre_commit(argc, argv);
     }
     else
     {
