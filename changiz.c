@@ -15,6 +15,13 @@
 #define MAX_COMMAND_LENGTH 1000
 #define MAX_NAME_LENGTH 1000
 
+#define COLOR_RESET "\e[0m"
+#define CYAN "\e[0;36m"
+#define YELLOW "\e[0;33m"
+#define RED "\e[0;31m"
+#define GREEN "\e[0;32m"
+#define BLU "\e[0;34m"
+
 int init(int argc, char *const argv[]);
 int configs(int argc, char *const argv[]);
 
@@ -1676,7 +1683,7 @@ int tag(int argc, char *const argv[])
                     fprintf(tag_file, "tag: %s\ncommit: %s\nDate: %sAuthor: %s <%s>\nMessage: -\n", argv[3], tag_commit_id, current_time, author_name, author_email);
                     fclose(tag_file);
 
-                    fprintf(stdout , "tag added successfully");
+                    fprintf(stdout, "tag added successfully");
                     return 1;
                 }
                 else
@@ -1702,7 +1709,7 @@ int tag(int argc, char *const argv[])
                 fprintf(tag_file, "tag: %s\ncommit: %s\nDate: %sAuthor: %s <%s>\nMessage: %s\n", argv[3], tag_commit_id, current_time, author_name, author_email, tag_message);
                 fclose(tag_file);
 
-                fprintf(stdout , "tag added successfully");
+                fprintf(stdout, "tag added successfully");
                 return 1;
             }
             if (argc > 4 && argc < 9)
@@ -1748,7 +1755,7 @@ int tag(int argc, char *const argv[])
                     fprintf(tag_file, "tag: %s\ncommit: %s\nDate: %sAuthor: %s <%s>\nMessage: %s\n", argv[3], tag_commit_id, current_time, author_name, author_email, tag_message);
                     fclose(tag_file);
 
-                    fprintf(stdout , "tag added successfully");
+                    fprintf(stdout, "tag added successfully");
                     return 1;
                 }
                 else
@@ -1792,7 +1799,7 @@ int tag(int argc, char *const argv[])
                         fprintf(tag_file, "tag: %s\ncommit: %s\nDate: %sAuthor: %s <%s>\nMessage: %s\n", argv[3], tag_commit_id, current_time, author_name, author_email, tag_message);
                         fclose(tag_file);
 
-                        fprintf(stdout , "tag added successfully");
+                        fprintf(stdout, "tag added successfully");
                         return 1;
                     }
                     else
@@ -1835,7 +1842,7 @@ int tag(int argc, char *const argv[])
                 printf("%s\n", save_tag);
                 if (strcmp(save_tag, min) < 0)
                 {
-                    
+
                     strcpy(min, save_tag);
                 }
             }
@@ -1851,8 +1858,118 @@ int tag(int argc, char *const argv[])
     return 0;
 }
 
-int grep(int argc, char *const argv[]){
+int grep(int argc, char *const argv[])
+{
+    char file_name[MAX_FILENAME_LENGTH] = "";
+    strcpy(file_name, argv[3]);
+    char word[MAX_COMMIT_MESSAGE_LENGTH] = "";
+    strcpy(word, argv[5]);
+    int exist_n = 0;
+    if (argc > 6)
+    {
+        if (strcmp(argv[6], "-c") == 0)
+        {
+            char check_branch[MAX_FILENAME_LENGTH] = "";
+            FILE *find_branch = fopen(".changiz/branch_list", "r");
+            fscanf(find_branch, "%[^\0]s", check_branch);
+            fclose(find_branch);
 
+            char *find = strstr(check_branch, argv[7]);
+            char branch[MAX_NAME_LENGTH] = "";
+            sscanf(find + 3, "%s", branch);
+
+            char file_address[MAX_NAME_LENGTH] = "";
+            sprintf(file_address, ".changiz/branches/%s/%s/%s", branch, argv[7], argv[3]);
+
+            if (strcmp(argv[8], "-n") == 0)
+            {
+                exist_n = 1;
+            }
+
+            FILE *open_file = fopen(file_address, "r");
+
+            char line[MAX_LINE_LENGTH] = "";
+            int counter_line = 0;
+            while (fgets(line, 10000, open_file) != NULL)
+            {
+                counter_line++;
+                char *find = strstr(line, argv[5]);
+                if (find != NULL)
+                {
+                    char end[1000] = "";
+                    char first[1000] = "";
+                    char wordd[100] = "";
+                    strcpy(end, find + strlen(argv[5]));
+                    strncpy(wordd, find, strlen(argv[5]));
+                    strncpy(first, line, find - line);
+
+                    if (exist_n)
+                    {
+                        fprintf(stdout, "%d ->", counter_line);
+                        fprintf(stdout, "%s" YELLOW "%s" COLOR_RESET "%s", first, wordd, end);
+                        continue;
+                    }
+                    if (!exist_n)
+                    {
+                        fprintf(stdout, "%s" YELLOW "%s" COLOR_RESET "%s", first, wordd, end);
+                        continue;
+                    }
+                }
+            }
+            fprintf(stdout, "Grep done successfully");
+            return 1;
+        }
+        if (strcmp(argv[6], "-n") == 0 && argc == 7)
+        {
+            FILE *open_file = fopen(argv[3], "r");
+            char line[MAX_LINE_LENGTH] = "";
+            int counter_line = 0;
+            while (fgets(line, 10000, open_file) != NULL)
+            {
+                counter_line++;
+                char *find = strstr(line, argv[5]);
+                if (find != NULL)
+                {
+                    char end[1000] = "";
+                    char first[1000] = "";
+                    char wordd[100] = "";
+                    strcpy(end, find + strlen(argv[5]));
+                    strncpy(wordd, find, strlen(argv[5]));
+                    strncpy(first, line, find - line);
+                    fprintf(stdout, ("%d ->"
+                                     "%s" YELLOW "%s" COLOR_RESET "%s"),
+                            counter_line, first, wordd, end);
+                    continue;
+                }
+            }
+            fprintf(stdout, "Grep done successfully");
+            return 1;
+        }
+    }
+    if (argc == 6)
+    {
+        FILE *open_file = fopen(argv[3], "r");
+        char line[MAX_LINE_LENGTH] = "";
+        while (fgets(line, 10000, open_file) != NULL)
+        {
+            char *find = strstr(line, argv[5]);
+            if (find != NULL)
+            {
+                char end[1000] = "";
+                char first[1000] = "";
+                char wordd[100] = "";
+                strcpy(end, find + strlen(argv[5]));
+                strncpy(wordd, find, strlen(argv[5]));
+                strncpy(first, line, find - line);
+
+                fprintf(stdout, "%s" YELLOW "%s" COLOR_RESET "%s", first, wordd, end);
+                continue;
+            }
+        }
+        fprintf(stdout, "Grep done successfully");
+        return 1;
+    }
+    return 1;
 }
 
 int main(int argc, char *argv[])
@@ -1923,5 +2040,10 @@ int main(int argc, char *argv[])
     else if (strcmp(argv[1], "grep") == 0)
     {
         return grep(argc, argv);
+    }
+    else
+    {
+        fprintf(stderr, "Please enter a valid command");
+        return 1;
     }
 }
