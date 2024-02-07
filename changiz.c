@@ -54,16 +54,9 @@ int tag(int argc, char *const argv[]);
 
 int grep(int argc, char *const argv[]);
 
-int pre_commit(int argc, char *const argv[]);
+int diff(int argc, char *const argv[]);
 
-void print_command(int argc, char *const argv[])
-{
-    for (int i = 0; i < argc; i++)
-    {
-        fprintf(stdout, "%s ", argv[i]);
-    }
-    fprintf(stdout, "\n");
-}
+int pre_commit(int argc, char *const argv[]);
 
 int init(int argc, char *const argv[])
 {
@@ -78,7 +71,6 @@ int init(int argc, char *const argv[])
     {
         fprintf(stderr, "Error no user.name exists!\n");
         fprintf(stderr, "Error no user.email exists!");
-        mkdir("config", 0755);
         return 1;
     }
     else if ((file_name == NULL) && (file_email != NULL))
@@ -245,7 +237,7 @@ struct dirent *HEAD_finder(char *address, int n)
     DIR *inside_address = opendir(address);
     int max_id = 0;
     int prev_max = 100;
-    for (int i = 0; i <= n; i++)
+    for (int i = 0; i < n; i++)
     {
         max_id = 0;
         while ((entry = readdir(inside_address)) != NULL)
@@ -935,7 +927,7 @@ int branch(int argc, char *const argv[])
             char last_commit[1000] = "";
             FILE *ID = fopen(".changiz/id_number", "r");
             fscanf(ID, "%[^\0]s", last_commit);
-            strcat(dest_location, "/silent");
+            strcat(dest_location, "/");
             strcat(dest_location, last_commit);
             mkdir(dest_location, 0755);
             fclose(ID);
@@ -969,10 +961,6 @@ int branch(int argc, char *const argv[])
             fprintf(add_branch, "(%s) %s\n", last_commit, argv[2]);
             fclose(add_branch);
 
-            // FILE *add_commit_id = fopen(".changiz/current_commit_id", "w");
-            // fprintf(add_commit_id, "%s", temp_current_id);
-            // fclose(add_commit_id);
-
             return 1;
         }
         else
@@ -981,7 +969,7 @@ int branch(int argc, char *const argv[])
             return 0;
         }
     }
-    if (argv[2] == NULL)
+    if (argc == 2)
     {
         struct dirent *entry;
         DIR *branch_check = opendir(".changiz/branches");
@@ -1190,16 +1178,17 @@ int checkout(int argc, char *const argv[])
         fprintf(stderr, "you need to commit changes first!");
         return 0;
     }
+    fclose(check_stage);
 
     char string_id[10000] = "";
     strcpy(string_id, argv[2]);
-
     if (atoi(argv[2]) == 0)
     {
         if (strcmp(argv[2], "HEAD") != 0)
         {
             char branch_address[MAX_FILENAME_LENGTH] = ".changiz/branches/";
             strcat(branch_address, argv[2]);
+            strcpy(string_id, "/");
             strcpy(string_id, HEAD_finder(branch_address, 1)->d_name);
         }
         else
@@ -1677,7 +1666,7 @@ int tag(int argc, char *const argv[])
                 {
                     mkdir(tag_name, 0755);
                     FILE *tag_list = fopen(".changiz/tag_list", "a");
-                    fprintf(tag_list, "%s\n", argv[4]);
+                    fprintf(tag_list, "%s\n", argv[3]);
                     fclose(tag_list);
 
                     FILE *commit_id = fopen(".changiz/current_commit_id", "r");
@@ -1824,37 +1813,40 @@ int tag(int argc, char *const argv[])
             system(command_cat);
         }
     }
-    // bug
+
     else if (argc == 2)
     {
         char save_tag[MAX_MESSAGE_LENGTH] = "";
+        char save_line[MAX_LINE_LENGTH][MAX_LINE_LENGTH];
         char x;
         int line_count = 0;
         FILE *tag_list = fopen(".changiz/tag_list", "r");
-        while ((x = fgetc(tag_list)) != EOF)
+        while (fgets(save_tag, 1000, tag_list))
         {
-            if (x == '\n')
-            {
-                line_count++;
-            }
+            strcpy(save_line[line_count], save_tag);
+            line_count++;
         }
-        char min[1000];
+        rewind(tag_list);
         for (int i = 0; i < line_count; i++)
         {
-            strcpy(min, "zzzzzzzzzzzz");
-            while (fgets(save_tag, 10000, tag_list) != NULL)
+            for (int j = 0; j < line_count; j++)
             {
-                printf("%s\n", save_tag);
-                if (strcmp(save_tag, min) < 0)
+                char temp[MAX_MESSAGE_LENGTH] = "";
+                if (strcmp(save_line[i], save_line[j]) < 0)
                 {
-
-                    strcpy(min, save_tag);
+                    strcpy(temp, save_line[i]);
+                    strcpy(save_line[i], save_line[j]);
+                    strcpy(save_line[j], temp);
                 }
             }
-            fprintf(stdout, "%s\n", min);
+        }
+        for (int i = 0; i < line_count; i++)
+        {
+            fprintf(stdout, "%s", save_line[i]);
         }
         return 1;
     }
+
     else
     {
         fprintf(stderr, "please enter a valid command");
@@ -1991,39 +1983,41 @@ int diff(int argc, char *const argv[])
         FILE *f1 = fopen(argv[3], "r");
         while (fgets(get_line1, 1000, f1) != NULL)
         {
-            while ((x = fgetc(f1)) != EOF)
+            line_counter1++;
+            if (strcmp(get_line1, "\n") == 0)
             {
-                if (x == '\n')
-                {
-                    line_counter1++;
-                    if (line_counter1 >= atoi(argv[6]) || line_counter1 <= atoi(argv[7]))
-                    {
-                        strcpy(lines1[i], get_line1);
-                        i++;
-                        break;
-                    }
-                    continue;
-                }
+                continue;
+            }
+            if (get_line1[strlen(get_line1) - 1] == '\n')
+            {
+                get_line1[strlen(get_line1) - 1] = '\0';
+            }
+            if (line_counter1 >= atoi(argv[6]) || line_counter1 <= atoi(argv[7]))
+            {
+                strcpy(lines1[i], get_line1);
+                i++;
             }
         }
+
         FILE *f2 = fopen(argv[4], "r");
         while (fgets(get_line2, 1000, f2) != NULL)
         {
-            while ((x = fgetc(f1)) != EOF)
+            line_counter1++;
+            if (strcmp(get_line2, "\n") == 0)
             {
-                if (x == '\n')
-                {
-                    line_counter1++;
-                    if (line_counter1 >= atoi(argv[9]) || line_counter1 <= atoi(argv[10]))
-                    {
-                        strcpy(lines2[j], get_line2);
-                        j++;
-                        break;
-                    }
-                    continue;
-                }
+                continue;
+            }
+            if (get_line2[strlen(get_line2) - 1] == '\n')
+            {
+                get_line2[strlen(get_line2) - 1] = '\0';
+            }
+            if (line_counter1 >= atoi(argv[9]) || line_counter1 <= atoi(argv[10]))
+            {
+                strcpy(lines2[j], get_line2);
+                j++;
             }
         }
+
         int pluser1 = line_counter1 - i;
         int pluser2 = line_counter2 - j;
         if (i == j)
@@ -2089,8 +2083,35 @@ int diff(int argc, char *const argv[])
     FILE *f2 = fopen(argv[4], "r");
     while (fgets(get_line1, 1000, f1) != NULL && fgets(get_line2, 1000, f2) != NULL)
     {
+        int is_ended = 0;
+
         line_counter1++;
+        while (strcmp(get_line1, "\n") == 0)
+        {
+            line_counter1++;
+            if (fgets(get_line1, 1000, f1) == NULL)
+            {
+                is_ended = 1;
+                break;
+            }
+        }
+
         line_counter2++;
+        while (strcmp(get_line2, "\n") == 0)
+        {
+            line_counter2++;
+            if (fgets(get_line2, 1000, f2) == NULL)
+            {
+                is_ended = 1;
+                break;
+            }
+        }
+
+        if (is_ended)
+        {
+            break;
+        }
+
         if (strcmp(get_line1, get_line2) != 0)
         {
             fprintf(stdout, "»»»»»»»»\n");
@@ -2101,154 +2122,236 @@ int diff(int argc, char *const argv[])
             fprintf(stdout, "»»»»»»»»\n");
         }
     }
-    if (fgets(get_line1, 1000, f1) != NULL)
+
+    while (fgets(get_line1, 1000, f1) != NULL)
     {
-        fprintf(stdout, "extra lines in file1:\n");
-        while (fgets(get_line1, 1000, f1) != NULL)
-        {
-            fprintf(stdout, BLU "%s\n" COLOR_RESET, get_line1);
-        }
-        return 1;
+        fprintf(stdout, BLU "file 1: %s\n" COLOR_RESET, get_line1);
     }
-    if (fgets(get_line2, 1000, f2) != NULL)
+
+    while (fgets(get_line2, 1000, f2) != NULL)
     {
-        fprintf(stdout, "extra lines in file2:\n");
-        while (fgets(get_line2, 1000, f2) != NULL)
-        {
-            fprintf(stdout, PURPLE "%s\n" COLOR_RESET, get_line2);
-        }
-        return 1;
+        fprintf(stdout, PURPLE "file 2: %s\n" COLOR_RESET, get_line2);
     }
+
     return 1;
 }
 
 // hooks
-const char *file_size_check(char *file_address)
+char file_size_check(char *file_address)
 {
-    FILE *list = fopen(".changiz/hook_list", "a");
-    fprintf(list, "file-size-check\n");
     FILE *fp = fopen(file_address, "r");
     fseek(fp, 0L, SEEK_END);
     long int res = ftell(fp);
     res = res / (1024 * 1024);
     if (res < 5)
     {
-        return "PASSED";
+        return 'P';
     }
-    return "FAILED";
+    return 'F';
 }
 
-const char *character_limit(char *file_address)
+char character_limit(char *file_address)
 {
-    FILE *list = fopen(".changiz/hook_list", "a");
-    fprintf(list, "file-size-check\n");
-
+    char str[MAX_NAME_LENGTH] = "";
     if (strstr(file_address, ".c") != NULL || strstr(file_address, ".txt") != NULL)
     {
-        if (strlen(file_address) < 20000)
+        FILE *fp = fopen(file_address, "r");
+        fscanf(fp, "%[^\0]s", str);
+        if (strlen(str) < 20000)
         {
-            return "PASSED";
+            return 'P';
         }
         else
         {
-            return "FAILED";
+            return 'F';
         }
     }
     else
     {
-        return "SKIPPED";
+        return 'S';
     }
 }
-const char *todo_check(char *file_address){
-    if (strstr(file_address, ".c") != NULL){
-        return "SKIPPED";
-    }
-    if(strstr(file_address, ".txt") != NULL){
-        FILE *fp = fopen(file_address, "r");
-        while (fgets(file_address, 1000, fp) != NULL)
-        {
-            if (strlen(file_address) < 20000)
-        {
-            return "PASSED";
-        }
-        else
-        {
-            return "FAILED";
-        }
-        }
-    }
-    return 1;
 
-}
-const char *format_check(char *file_address){
-    if (strstr(file_address, ".c") != NULL){
-        return "SKIPPED";
-    }
-    if(strstr(file_address, ".txt") != NULL){
+char eof_blank_space(char *file_address)
+{
+    char str[MAX_NAME_LENGTH] = "";
+    if (strstr(file_address, ".c") != NULL || strstr(file_address, ".txt") != NULL)
+    {
         FILE *fp = fopen(file_address, "r");
-        while (fgets(file_address, 1000, fp) != NULL)
+        fscanf(fp, "%[^\0]s", str);
+        if ((str[strlen(str) - 1] == ' ') || (str[strlen(str) - 1] == '\t') || (str[strlen(str) - 1] == '\n'))
         {
-            if (strlen(file_address) < 20000)
-        {
-            return "PASSED";
+            return 'F';
         }
         else
         {
-            return "FAILED";
-        }
+            return 'P';
         }
     }
-    return 1;
-    
+    else
+    {
+        return 'S';
+    }
+}
+
+char format_check(char *file_address)
+{
+    char str[MAX_NAME_LENGTH] = "";
+    if (strstr(file_address, ".c") != NULL || strstr(file_address, ".txt") != NULL || strstr(file_address, ".mp4") != NULL || strstr(file_address, ".mp3") != NULL || strstr(file_address, ".wav") != NULL || strstr(file_address, ".png") != NULL)
+    {
+        return 'P';
+    }
+    else
+    {
+        return 'F';
+    }
+}
+
+char static_error_check(char *file_address)
+{
+    if (strstr(file_address, ".c") != NULL)
+    {
+        char command[MAX_COMMAND_LENGTH] = "";
+        sprintf(command, "gcc %s -o test 2>/dev/null", file_address);
+        if (system(command) == 0)
+        {
+            return 'P';
+        }
+        else
+        {
+            return 'F';
+        }
+    }
+    else
+    {
+        return 'S';
+    }
+}
+
+char todo_check(char *file_address)
+{
+    char str[MAX_NAME_LENGTH] = "";
+    if (strstr(file_address, ".c") != NULL || strstr(file_address, ".txt") != NULL)
+    {
+        FILE *fp = fopen(file_address, "r");
+        fscanf(fp, "%[^\0]s", str);
+        if (strstr(str, "TODO") != NULL)
+        {
+            return 'P';
+        }
+        else
+        {
+            return 'F';
+        }
+    }
+    else
+    {
+        return 'S';
+    }
+}
+
+int brace_count(char *file_string, char brace)
+{
+    int counter = 0;
+    for (int i = 0; i < strlen(file_string); i++)
+    {
+        if (file_string[i] = brace)
+        {
+            counter++;
+        }
+    }
+    return counter;
+}
+
+char balance_braces(char *file_address)
+{
+    char str[MAX_NAME_LENGTH] = "";
+    if (strstr(file_address, ".c") != NULL || strstr(file_address, ".txt") != NULL)
+    {
+        FILE *fp = fopen(file_address, "r");
+        fscanf(fp, "%[^\0]s", str);
+        if (brace_count(str, '[') == brace_count(str, ']') && brace_count(str, '{') == brace_count(str, '}') || brace_count(str, '(') == brace_count(str, ')'))
+        {
+            return 'P';
+        }
+        else
+        {
+            return 'F';
+        }
+    }
+    else
+    {
+        return 'S';
+    }
 }
 
 int pre_commit(int argc, char *const argv[])
 {
     if (argc == 4 && strcmp(argv[3], "list") == 0)
     {
-        char command_cat[MAX_COMMAND_LENGTH] = "";
-        sprintf(command_cat, "cat .changiz/hook_list");
-        system(command_cat);
+        fprintf(stdout, "•todo-check          •eof-blank-space      •format-check\n");
+        fprintf(stdout, "•balance-braces      •indentation-check    •static-error-check\n");
+        fprintf(stdout, "•file-size-check     •character-limit      •time-limit\n");
+        return 1;
     }
-    return 1;
     if (argc == 2)
     {
-        char situation[100][100] = "";
+        char situation[100];
+        char hook_id[100][100];
+        char file_name[100];
         struct dirent *look_file;
         DIR *stage = opendir(".changiz/stage");
-
         while ((look_file = readdir(stage)) != NULL)
         {
-            int i = 0;
-            strcpy(situation[i], todo_check(look_file->d_name));
-            i++;
-            strcpy(situation[i], character_limit(look_file->d_name));
-            i++;
-            strcpy(situation[i], format_check(look_file->d_name));
-            i++;
-            strcpy(situation[i], balance_braces(look_file->d_name));
-            i++;
-            strcpy(situation[i], file_size_check(look_file->d_name));
-            i++;
-            strcpy(situation[i], indentation_check(look_file->d_name));
-            i++;
-        }
-        for (int j = 0; j < 9; j++)
-        {
-            fprintf(stdout, BLU "\"hook-id %d\"..................." COLOR_RESET, j);
-            if (strcmp(situation[j], "PASSED"))
+            strcpy(file_name, look_file->d_name);
+            if ((strcmp(look_file->d_name, ".") == 0) || (strcmp(look_file->d_name, "..") == 0) || (strcmp(look_file->d_name, ".DS_Store") == 0))
             {
-                fprintf(stdout, GREEN "%s\n" COLOR_RESET, situation[j]);
                 continue;
             }
-            if (strcmp(situation[j], "FAILED"))
+            int i = 0;
+            situation[i] = character_limit(look_file->d_name);
+            strcpy(hook_id[i], "character-limit");
+            i++;
+            situation[i] = file_size_check(look_file->d_name);
+            strcpy(hook_id[i], "file-size-check");
+            i++;
+            situation[i] = eof_blank_space(look_file->d_name);
+            strcpy(hook_id[i], "eof-blank-space");
+            i++;
+            situation[i] = format_check(look_file->d_name);
+            strcpy(hook_id[i], "format-check");
+            i++;
+            situation[i] = static_error_check(look_file->d_name);
+            strcpy(hook_id[i], "static-error-check");
+            i++;
+            situation[i] = todo_check(look_file->d_name);
+            strcpy(hook_id[i], "todo-check");
+            i++;
+            situation[i] = balance_braces(look_file->d_name);
+            strcpy(hook_id[i], "balance-braces");
+            i++;
+            for (int j = 0; j < 7; j++)
             {
-                fprintf(stdout, RED "%s\n" COLOR_RESET, situation[j]);
-                continue;
-            }if (strcmp(situation[j], "SKIPPED"))
-            {
-                fprintf(stdout, YELLOW "%s\n" COLOR_RESET, situation[j]);
-                continue;
+                if (j == 0)
+                {
+                    fprintf(stdout, "%s:\n", file_name);
+                }
+                fprintf(stdout, BLU "\"%s\"..................." COLOR_RESET, hook_id[j]);
+                if (situation[j] == 'P')
+                {
+                    fprintf(stdout, GREEN "PASSED\n" COLOR_RESET);
+                    continue;
+                }
+                if (situation[j] == 'F')
+                {
+                    fprintf(stdout, RED "FAILED\n" COLOR_RESET);
+                    continue;
+                }
+                if (situation[j] == 'S')
+                {
+                    fprintf(stdout, YELLOW "SKIPPED\n" COLOR_RESET);
+                    continue;
+                }
             }
         }
     }
@@ -2256,13 +2359,6 @@ int pre_commit(int argc, char *const argv[])
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2)
-    {
-        fprintf(stderr, "please enter a valid command");
-        return 1;
-    }
-    print_command(argc, argv);
-
     if (strcmp(argv[1], "init") == 0)
     {
         return init(argc, argv);
