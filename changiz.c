@@ -65,136 +65,114 @@ int init(int argc, char *const argv[])
     {
         return 1;
     }
-    FILE *file_name = fopen("/Users/parmis/Desktop/project/FOP/config_global/config_user_name", "r");
-    FILE *file_email = fopen("/Users/parmis/Desktop/project/FOP/config_global/config_user_email", "r");
+
+    // Use $HOME/.changiz for global config
+    char *home = getenv("HOME");
+    char global_name[1024];
+    char global_email[1024];
+    sprintf(global_name, "%s/.changiz/config_user_name", home);
+    sprintf(global_email, "%s/.changiz/config_user_email", home);
+
+    FILE *file_name = fopen(global_name, "r");
+    FILE *file_email = fopen(global_email, "r");
     if ((file_name == NULL) && (file_email == NULL))
     {
-        fprintf(stderr, "Error no user.name exists!\n");
-        fprintf(stderr, "Error no user.email exists!");
+        fprintf(stderr, "Error: no user.name exists!\n");
+        fprintf(stderr, "Error: no user.email exists!\n");
         return 1;
     }
     else if ((file_name == NULL) && (file_email != NULL))
     {
-        fprintf(stderr, "Error no user.name exists!");
+        fprintf(stderr, "Error: no user.name exists!\n");
         return 1;
     }
     else if ((file_name != NULL) && (file_email == NULL))
     {
-        fprintf(stderr, "Error no user.email exists!");
+        fprintf(stderr, "Error: no user.email exists!\n");
         return 1;
+    }
+
+    if (mkdir(".changiz", 0755) != -1)
+    {
+        fprintf(stdout, "Initialized empty changiz repository\n");
+        mkdir(".changiz/tags", 0755);
+        mkdir(".changiz/stage", 0755);
+        mkdir(".changiz/hooks", 0755);
+        mkdir(".changiz/config", 0755);
+        mkdir(".changiz/branches", 0755);
+        mkdir(".changiz/data_saver", 0755);
+        mkdir(".changiz/branches/masterbranch", 0755);
+
+        FILE *current = fopen(".changiz/current_location", "w");
+        fprintf(current, "masterbranch");
+        fclose(current);
+
+        FILE *commit_id = fopen(".changiz/current_commit_id", "w");
+        fprintf(commit_id, "1");
+        fclose(commit_id);
+
+        FILE *fp = fopen(".changiz/save_staging_names", "w");
+        fclose(fp);
+
+        FILE *ID = fopen(".changiz/id_number", "w");
+        fprintf(ID, "1");
+        fclose(ID);
+
+        FILE *log = fopen(".changiz/log_file", "w");
+        fclose(log);
+
+        FILE *author = fopen(".changiz/author_list", "w");
+        fclose(author);
+
+        FILE *branch = fopen(".changiz/branch_list", "w");
+        fclose(branch);
+
+        FILE *status = fopen(".changiz/status_file", "w");
+        fclose(status);
+
+        FILE *tag = fopen(".changiz/tag_list", "w");
+        fclose(tag);
+
+        // Copy user configs into repo config
+        char command[MAX_COMMAND_LENGTH];
+        sprintf(command, "cp %s .changiz/config/config_user_name", global_name);
+        system(command);
+
+        char command_email[MAX_COMMAND_LENGTH];
+        sprintf(command_email, "cp %s .changiz/config/config_user_email", global_email);
+        system(command_email);
     }
     else
     {
-        char tmp_cwd[1024];
-        bool exists = false;
-        struct dirent *entry;
-        do
-        {
-            DIR *dir = opendir(".");
-            if (dir == NULL)
-            {
-                fprintf(stderr, "Error opening current directory");
-                return 1;
-            }
-            while ((entry = readdir(dir)) != NULL)
-            {
-                if (entry->d_type == DT_DIR && strcmp(entry->d_name, ".changiz") == 0)
-                {
-                    exists = true;
-                }
-            }
-            closedir(dir);
-
-            if (getcwd(tmp_cwd, sizeof(tmp_cwd)) == NULL)
-            {
-                return 1;
-            }
-
-            if (strcmp(tmp_cwd, "/") != 0)
-            {
-                if (chdir("..") != 0)
-                {
-                    return 1;
-                }
-            }
-
-        } while (strcmp(tmp_cwd, "/") != 0);
-
-        if (chdir(cwd) != 0)
-        {
-            return 1;
-        }
-
-        if (!exists)
-        {
-            if (mkdir(".changiz", 0755) != -1)
-            {
-                fprintf(stdout, "Initialized empty changiz repository");
-                mkdir(".changiz/tags", 0755);
-                mkdir(".changiz/stage", 0755);
-                mkdir(".changiz/config", 0755);
-                mkdir(".changiz/branches", 0755);
-                mkdir(".changiz/data_saver", 0755);
-                mkdir(".changiz/branches/masterbranch", 0755);
-                FILE *current = fopen(".changiz/current_location", "w");
-                fprintf(current, "masterbranch");
-                fclose(current);
-                FILE *commit_id = fopen(".changiz/current_commit_id", "w");
-                fprintf(commit_id, "1");
-                fclose(commit_id);
-                FILE *fp = fopen(".changiz/save_staging_names", "w");
-                fclose(fp);
-                FILE *ID = fopen(".changiz/id_number", "w");
-                fprintf(ID, "1");
-                fclose(ID);
-                FILE *log = fopen(".changiz/log_file", "w");
-                fclose(log);
-                FILE *author = fopen(".changiz/author_list", "w");
-                fclose(author);
-                FILE *branch = fopen(".changiz/branch_list", "w");
-                fclose(branch);
-                FILE *status = fopen(".changiz/status_file", "w");
-                fclose(status);
-                FILE *tag = fopen(".changiz/tag_list", "w");
-                fclose(tag);
-                FILE *list = fopen(".changiz/hook_list", "w");
-                fclose(list);
-
-                char command[MAX_COMMAND_LENGTH] = "";
-                sprintf(command, "cp -r /Users/parmis/Desktop/project/FOP/config_global/config_user_name .changiz/config");
-                system(command);
-
-                char command_email[MAX_COMMAND_LENGTH] = "";
-                sprintf(command_email, "cp -r /Users/parmis/Desktop/project/FOP/config_global/config_user_email .changiz/config");
-                system(command_email);
-                return 1;
-            }
-        }
-        else
-        {
-            fprintf(stderr, "changiz repository has already initialized");
-        }
+        fprintf(stderr, "changiz repository has already been initialized\n");
     }
+
     return 0;
 }
 
 int configs(int argc, char *const argv[])
 {
+    char *home = getenv("HOME");
+    char global_name[1024];
+    char global_email[1024];
+    sprintf(global_name, "%s/.changiz/config_user_name", home);
+    sprintf(global_email, "%s/.changiz/config_user_email", home);
+
     if (strcmp(argv[2], "-global") == 0)
     {
         if (strcmp(argv[3], "user.name") == 0)
         {
-            FILE *file_name = fopen("/Users/parmis/Desktop/project/FOP/config_global/config_user_name", "w");
+            FILE *file_name = fopen(global_name, "w");
             fprintf(file_name, "%s", argv[4]);
-            fprintf(stdout, "global user.name config succsessfully");
+            fprintf(stdout, "global user.name config set successfully\n");
             fclose(file_name);
             return 1;
         }
         else if (strcmp(argv[3], "user.email") == 0)
         {
-            FILE *file_email = fopen("/Users/parmis/Desktop/project/FOP/config_global/config_user_email", "w");
+            FILE *file_email = fopen(global_email, "w");
             fprintf(file_email, "%s", argv[4]);
-            fprintf(stdout, "global user.email config succsessfully");
+            fprintf(stdout, "global user.email config set successfully\n");
             fclose(file_email);
             return 1;
         }
@@ -203,7 +181,7 @@ int configs(int argc, char *const argv[])
     {
         FILE *file_rn_name = fopen(".changiz/config/config_user_name", "w");
         fprintf(file_rn_name, "%s", argv[3]);
-        fprintf(stdout, "user.name config succsessfully");
+        fprintf(stdout, "user.name config set successfully\n");
         fclose(file_rn_name);
         return 1;
     }
@@ -211,7 +189,7 @@ int configs(int argc, char *const argv[])
     {
         FILE *file_rn_email = fopen(".changiz/config/config_user_email", "w");
         fprintf(file_rn_email, "%s", argv[3]);
-        fprintf(stdout, "user.email config succsessfully");
+        fprintf(stdout, "user.email config set successfully\n");
         fclose(file_rn_email);
         return 1;
     }
