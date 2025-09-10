@@ -2255,7 +2255,7 @@ int brace_count(char *file_string, char brace)
     int counter = 0;
     for (int i = 0; i < strlen(file_string); i++)
     {
-        if (file_string[i] = brace)
+        if (file_string[i] == brace)
         {
             counter++;
         }
